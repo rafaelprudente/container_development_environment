@@ -1,0 +1,29 @@
+services:
+  static-content-server:
+    build:
+      context: .
+      args:
+        FTP_USER: ${FTP_USER}
+        FTP_PASSWORD: ${FTP_PASSWORD}
+    image: static-content-server:latest
+    container_name: static-content-server
+    restart: always
+    ports:
+      - "9090:80"   # HTTP Server on port 9090
+      - "9021:21"   # FTP Server on port 9021
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget -q --spider http://localhost:80 && ftp -n localhost 21 <<< 'quit'"]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    environment:      
+      FTP_USER: ${FTP_USER}
+      FTP_PASSWORD: ${FTP_PASSWORD}      
+    volumes:
+      - ./data/content:/var/www  # Web content
+      - ./data/content:/var/ftp  # FTP files
+      - ./data/logs:/var/log
+      - ./data/httpd.conf:/etc/apache2/httpd.conf
+      - ./data/vsftpd.conf:/etc/vsftpd/vsftpd.conf
+    entrypoint: ["/bin/sh", "/startup.sh"]

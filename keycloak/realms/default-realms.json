@@ -1,0 +1,21 @@
+{
+    "realm": "SideProject",
+    "enabled": true,
+    "clients": [
+      {
+        "clientId": "cc6159e1-4b5a-4e60-80e0-9f1bc8324a31",
+        "enabled": true,
+        "publicClient": true,
+        "protocol": "openid-connect",
+        "redirectUris": ["http://localhost:4200/*"]
+      }
+    ],
+    "roles": {
+      "realm": [
+        {
+          "name": "admin",
+          "description": "Administrator role"
+        }
+      ]
+    }
+  }

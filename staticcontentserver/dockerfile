@@ -1,0 +1,73 @@
+# Use Ubuntu as base image
+FROM ubuntu:latest AS builder
+
+# Install necessary packages
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    apache2 \
+    vsftpd \
+    curl \
+    openssl \
+    libpcre3 \
+    uuid-runtime \
+    libpam0g \
+    libcap2-bin && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+FROM ubuntu:latest
+
+# Define build arguments
+ARG FTP_USER
+ARG FTP_PASSWORD
+
+# Copy necessary binaries and libraries from the builder stage
+COPY --from=builder /usr/sbin/apache2 /usr/sbin/apache2
+COPY --from=builder /usr/sbin/vsftpd /usr/sbin/vsftpd
+COPY --from=builder /etc/apache2 /etc/apache2
+COPY --from=builder /etc/vsftpd /etc/vsftpd
+
+# Copy required libraries for apache2 and vsftpd
+COPY --from=builder /lib/x86_64-linux-gnu /lib/x86_64-linux-gnu
+COPY --from=builder /usr/lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu
+
+# Set the root directory for the FTP server and WWW server
+ENV FTP_ROOT=/var/ftp
+ENV WWW_ROOT=/var/www
+
+RUN sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www|' /etc/apache2/sites-available/000-default.conf
+
+# Create the WWW root directory, FTP root directory and log directory and set the proper permissions
+RUN mkdir -p ${WWW_ROOT} && \
+    mkdir -p ${FTP_ROOT} && \
+    mkdir -p "/var/log"
+
+# Create the apache user and group
+RUN groupadd apache && \
+    useradd -d ${FTP_ROOT} -s /bin/bash ${FTP_USER} && \
+    echo "${FTP_USER}:${FTP_PASSWORD}" | chpasswd && \
+    usermod -aG apache ${FTP_USER}
+
+# Set the proper permissions
+RUN chmod 775 ${FTP_ROOT} && \
+    chown ${FTP_USER}:${FTP_USER} ${FTP_ROOT} && \
+    chmod -R 775 ${WWW_ROOT} && \
+    chown -R ${FTP_USER}:${FTP_USER} ${WWW_ROOT} && \
+    chgrp -R apache ${WWW_ROOT} && \
+    chmod g+s ${WWW_ROOT} && \
+    chmod 755 /var/log && \
+    chown root:root /var/log && \
+    touch /var/log/apache2/access.log /var/log/apache2/error.log /var/log/vsftpd.log && \
+    chown www-data:www-data /var/log/apache2/*.log && \
+    chown ${FTP_USER}:${FTP_USER} /var/log/vsftpd.log
+
+EXPOSE 21 80
+
+# Copy the startup script into the container
+COPY startup.sh /startup.sh
+
+# Make the script executable
+RUN chmod +x /startup.sh
+
+# Set the script as the entrypoint
+ENTRYPOINT ["/bin/sh", "/startup.sh"]

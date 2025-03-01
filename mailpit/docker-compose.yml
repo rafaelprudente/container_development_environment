@@ -1,0 +1,28 @@
+services:
+  mailpit:
+    image: axllent/mailpit
+    restart: always
+    ports:
+      - 8025:8025
+      - 1025:1025
+      - 1110:1110
+    healthcheck:
+      test: ["CMD", "curl", "--silent", "--fail-with-body", "--max-time", "5", "http://localhost:8025/livez"]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+      start_period: 60s      
+    environment:
+      TZ: Europe/Lisbon
+
+      MP_MAX_MESSAGES: 500
+      
+      MP_SMTP_AUTH_ALLOW_INSECURE: true
+
+      MP_UI_AUTH_FILE: /data/auth.txt
+      MP_POP3_AUTH_FILE: /data/auth.txt
+      MP_SMTP_AUTH_FILE: /data/auth.txt
+      
+      MP_DATABASE: /data/mailpit.db
+    volumes:
+      - ./data:/data
